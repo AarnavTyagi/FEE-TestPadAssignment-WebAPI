@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Sample</title>
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            padding: 24px 16px;
+            background: #f5f5f5;
+            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+            font-size: 14px;
+            color: #333;
+        }
+
+        /* User story 1: centered container */
+        .container {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 24px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        h1 {
+            margin: 0 0 20px;
+            font-size: 42px;
+            font-weight: 400;
+            color: #555;
+        }
+
+        input[type="text"] {
+            display: block;
+            width: 100%;
+            max-width: 550px;
+            height: 34px;
+            padding: 6px 12px;
+            font-size: 14px;
+            color: #555;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #66afe9;
+            box-shadow: 0 0 6px rgba(102, 175, 233, 0.6);
+        }
+
+        button {
+            margin-top: 14px;
+            padding: 6px 12px;
+            font-size: 14px;
+            color: #fff;
+            background: #449d44;
+            border: 1px solid #398439;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover { background: #398439; }
+        button:disabled { opacity: 0.65; cursor: default; }
+
+        #result { margin-top: 24px; }
+
+        .profile-name {
+            margin: 0 0 10px;
+            font-size: 26px;
+            font-weight: 400;
+            color: #777;
+        }
+
+        .profile-name em { font-size: 20px; color: #7b9cc4; }
+
+        .profile {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 14px;
+            color: #555;
+        }
+
+        .profile img {
+            width: 80px;
+            height: 80px;
+            padding: 3px;
+            border: 1px solid #ccc;
+        }
+
+        .profile p { margin: 0 0 4px; }
+
+        .repos-title { margin: 0 0 10px; font-weight: 700; color: #555; }
+
+        .repo-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .repo-list a {
+            display: inline-block;
+            padding: 4px 8px;
+            font-size: 12px;
+            font-weight: 700;
+            color: #fff;
+            text-decoration: none;
+            background: #e8703a;
+            border-radius: 3px;
+        }
+
+        .repo-list a:hover { background: #cf5a26; }
+
+        .message { color: #a94442; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>API Sample</h1>
+
+        <!-- User stories 2, 3, 4: form, placeholder, submit button -->
+        <form id="user-form">
+            <input type="text" id="username" placeholder="Github username..." autocomplete="off">
+            <button type="submit" id="submit-btn">Pull User Data</button>
+        </form>
+
+        <div id="result"></div>
+    </div>
+
+    <script>
+        var API_URL = "https://api.github.com/users/";
+
+        var form = document.getElementById("user-form");
+        var input = document.getElementById("username");
+        var button = document.getElementById("submit-btn");
+        var result = document.getElementById("result");
+
+        // User story 5: stop the normal form submission
+        form.addEventListener("submit", function (event) {
+            event.preventDefault();
+
+            var username = input.value.trim();
+            if (username === "") {
+                showMessage("Please enter a GitHub username.");
+                return;
+            }
+
+            loadUser(username);
+        });
+
+        // User story 6: GET requests using AJAX
+        function loadUser(username) {
+            var name = encodeURIComponent(username);
+            button.disabled = true;
+            showMessage("Loading...");
+
+            Promise.all([
+                getJSON(API_URL + name),
+                getJSON(API_URL + name + "/repos")
+            ])
+                .then(function (data) {
+                    showUser(data[0], data[1]);
+                })
+                .catch(function (error) {
+                    showMessage(error.message);
+                })
+                .then(function () {
+                    button.disabled = false;
+                });
+        }
+
+        function getJSON(url) {
+            return new Promise(function (resolve, reject) {
+                var xhr = new XMLHttpRequest();
+                xhr.open("GET", url);
+                xhr.onload = function () {
+                    if (xhr.status === 200) {
+                        resolve(JSON.parse(xhr.responseText));
+                    } else if (xhr.status === 404) {
+                        reject(new Error("User not found."));
+                    } else if (xhr.status === 403) {
+                        reject(new Error("GitHub request limit reached. Try again later."));
+                    } else {
+                        reject(new Error("Request failed with status " + xhr.status + "."));
+                    }
+                };
+                xhr.onerror = function () {
+                    reject(new Error("Network error. Check your connection."));
+                };
+                xhr.send();
+            });
+        }
+
+        // User story 7: show the repositories as a list
+        function showUser(user, repos) {
+            result.innerHTML = "";
+
+            var heading = document.createElement("h2");
+            heading.className = "profile-name";
+            heading.textContent = (user.name || user.login) + " ";
+            var handle = document.createElement("em");
+            handle.textContent = "(@" + user.login + ")";
+            heading.appendChild(handle);
+
+            var profile = document.createElement("div");
+            profile.className = "profile";
+            var avatar = document.createElement("img");
+            avatar.src = user.avatar_url;
+            avatar.alt = user.login;
+            var stats = document.createElement("div");
+            stats.innerHTML = "<p></p><p></p>";
+            stats.children[0].textContent = "Followers: " + user.followers + " - Following: " + user.following;
+            stats.children[1].textContent = "Repos: " + user.public_repos;
+            profile.appendChild(avatar);
+            profile.appendChild(stats);
+
+            var title = document.createElement("p");
+            title.className = "repos-title";
+            title.textContent = "Repos List:";
+
+            var list = document.createElement("ul");
+            list.className = "repo-list";
+
+            if (repos.length === 0) {
+                var empty = document.createElement("li");
+                empty.textContent = "No public repositories.";
+                list.appendChild(empty);
+            }
+
+            repos.forEach(function (repo) {
+                var item = document.createElement("li");
+                var link = document.createElement("a");
+                link.textContent = repo.name;
+                // User story 8: open the repository in a new tab
+                link.href = repo.html_url;
+                link.target = "_blank";
+                link.rel = "noopener noreferrer";
+                item.appendChild(link);
+                list.appendChild(item);
+            });
+
+            result.appendChild(heading);
+            result.appendChild(profile);
+            result.appendChild(title);
+            result.appendChild(list);
+        }
+
+        function showMessage(text) {
+            result.innerHTML = "";
+            var p = document.createElement("p");
+            p.className = "message";
+            p.textContent = text;
+            result.appendChild(p);
+        }
+    </script>
+</body>
+</html>
